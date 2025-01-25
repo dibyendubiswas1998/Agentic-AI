@@ -1,0 +1,12 @@
+sentence_transformers
+langchain
+langchain-community
+langchainhub
+langchain-google-genai
+langchain-chroma
+bs4
+boto3
+langchain-aws
+langgraph
+langsmith
+langchain_anthropic
