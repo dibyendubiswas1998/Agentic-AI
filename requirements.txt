@@ -3,7 +3,11 @@ langchain
 langchain-community
 langchainhub
 langchain-google-genai
-langchain-chroma
+langchain_anthropic
+langchain_experimental
+langchain-openai
+matplotlib
+# langchain-chroma
 bs4
 boto3
 langchain-aws
