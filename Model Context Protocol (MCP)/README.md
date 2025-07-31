@@ -59,10 +59,38 @@ Modern LLM-based applications need to dynamically access and interact with diver
 ---
 
 ## 🔄 Communication Between Components
+![MCP](Img/Communication%20Between%20MCP%20Components.png)
+### 🔑 **Step-by-Step Flow**
 
-- Host uses Client to invoke tools
-- Client handles communication and state
-- Server responds, notifies, or calls back using standard messages
+1️⃣ **User Input**
+A user provides input (e.g., a question or command) to the system.
+
+2️⃣ **MCP Client requests tool list**
+The MCP Client (inside the MCP Host / Application) queries available MCP Servers to **find the list of tools** they provide.
+
+3️⃣ **MCP Client collects tool descriptions**
+The MCP Client **retrieves metadata** about the available tools from all MCP Servers (e.g., what methods they support, input/output schemas).
+
+4️⃣ **LLM receives question + tool list**
+The MCP Client gives the LLM the user’s question and the list of available tools for reasoning.
+
+5️⃣ **LLM selects a specific tool for the task**
+The LLM decides which tool(s) to call based on the user input and tool capabilities, then forms a tool request.
+
+6️⃣ **MCP Client sends tool call**
+The MCP Client forwards the LLM’s tool request (via JSON-RPC) to the **specific MCP Server** that hosts the tool.
+
+7️⃣ **MCP Server processes and extracts context**
+The MCP Server performs the requested operation (e.g., DB query, file processing, API call) and generates output.
+
+8️⃣ **MCP Client returns tool response to LLM**
+The result from the tool is passed back to the LLM for integration into its reasoning.
+
+9️⃣ **LLM generates contextualized response**
+The LLM uses the tool output as part of its overall response formulation.
+
+🔟 **Final output to user**
+The user receives a rich, contextualized answer that combines the LLM’s reasoning and the tool’s output.
 
 ---
 
