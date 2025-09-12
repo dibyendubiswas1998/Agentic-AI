@@ -1,0 +1,1514 @@
+{
+  "name": "HR Interview Calling",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -5136,
+        -1360
+      ],
+      "id": "275588f5-9162-40da-94b4-56a203aa9a35",
+      "name": "START MANUAL"
+    },
+    {
+      "parameters": {
+        "operation": "download",
+        "fileId": {
+          "__rl": true,
+          "value": "1MHQJ6oD38aBPrhhD7G-G885Dh-p8nzB4",
+          "mode": "list",
+          "cachedResultName": "JD.pdf",
+          "cachedResultUrl": "https://drive.google.com/file/d/1MHQJ6oD38aBPrhhD7G-G885Dh-p8nzB4/view?usp=drivesdk"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        -4928,
+        -1360
+      ],
+      "id": "8a05dea3-da61-4e6a-bb84-59f3624f1072",
+      "name": "Download: JD",
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "poure53r0gBj835F",
+          "name": "Jhon@aiqwip G-Drive"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "pdf",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1,
+      "position": [
+        -4752,
+        -1360
+      ],
+      "id": "b43306ed-e66f-4e17-86d0-c0cd3db6a5c9",
+      "name": "Read JD"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        -4336,
+        -1360
+      ],
+      "id": "0f4effa8-38ea-419c-bc0d-4d28ce98555a",
+      "name": "Loop",
+      "alwaysOutputData": false
+    },
+    {
+      "parameters": {
+        "resource": "fileFolder",
+        "queryString": ".pdf",
+        "returnAll": true,
+        "filter": {
+          "folderId": {
+            "__rl": true,
+            "value": "1FCBg7xjynlYuIq-tO41bxrcj0yWwnLdf",
+            "mode": "list",
+            "cachedResultName": "RESUME",
+            "cachedResultUrl": "https://drive.google.com/drive/folders/1FCBg7xjynlYuIq-tO41bxrcj0yWwnLdf"
+          }
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        -4544,
+        -1360
+      ],
+      "id": "17595e4b-14f9-4cf2-a24a-5f08d1345689",
+      "name": "Search PDFs",
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "poure53r0gBj835F",
+          "name": "Jhon@aiqwip G-Drive"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "download",
+        "fileId": {
+          "__rl": true,
+          "value": "={{ $json.id }}",
+          "mode": "id"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        -4144,
+        -1216
+      ],
+      "id": "4e9a45ff-d0ab-4b14-8911-2dc87e12e750",
+      "name": "Download - Resumes",
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "poure53r0gBj835F",
+          "name": "Jhon@aiqwip G-Drive"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "pdf",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1,
+      "position": [
+        -3952,
+        -1216
+      ],
+      "id": "b9652534-1c97-4b56-abf9-491e0c309634",
+      "name": "Read Resumes"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o",
+          "mode": "list",
+          "cachedResultName": "GPT-4O"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=# **Role:**\nYou are an expert technical recruiter and meticulous data extractor. Follow the schema and rules exactly. Do not invent data. If a field cannot be found or validated, return null (not an empty string).\n\n## **Use the following inputs:**\n\n### **Job Description (JD):** \n{{ $('Read JD').item.json.text }}\n\n### **Candidate Resume:** \n{{ $json.text }}\n\n## **TASKS:**\n1) Parse the resume and evaluate the candidate against the JD.\n2) Return a single JSON object using the exact schema below.\n3) Apply the validation and scoring rules precisely.\n\nOUTPUT SCHEMA (keys must match exactly)\n{\n  \"first_name\": string|null,\n  \"last_name\": string|null,\n  \"phone_number\": string|null,            // E.164 with +91 rule below\n  \"email_id\": string|null,                // null if invalid\n  \"gender\": \"Male\"|\"Female\"|\"Other\"|null, // only if explicitly stated\n  \"position_applied_for\": string|null,    // from JD role/title\n  \"resume_summary\": string|null,          // 3–5 sentences\n  \"strong_skills\": string[],              // normalized, lower_snake_case or kebab-case\n  \"missing_skills\": string[],             // required by JD but not present in resume\n  \"resume_score\": integer,                // 0–100\n  \"status\": \"pass\"|\"fail\"\n}\n\n## **VALIDATION & NORMALIZATION RULES:**\n- Names:\n  - Split the candidate’s full name into first_name and last_name.\n  - If only one token is found, set first_name and make last_name = null.\n- Phone:\n  - Extract the most likely mobile number.\n  - Remove spaces, hyphens, parentheses.\n  - If it already starts with \"+91\", keep as is.\n  - Else, if it is exactly 10 digits after stripping, prefix with \"+91\".\n  - Otherwise (length not 10 or ambiguous), set phone_number = null.\n- Email:\n  - Must match a standard pattern like: local@domain.tld (e.g., `^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$`).\n  - If it does not match or looks placeholder/invalid (e.g., “abc@xyz”, “name@domain”, “test@example”, “NA”), set email_id = null.\n- Gender:\n  - Provide only if explicitly present in resume; never infer from name.\n- Skills:\n  - Normalize skills to lower_snake_case (e.g., \"python\", \"django_rest_framework\", \"sql\", \"tensorflow\").\n  - strong_skills = intersection of resume skills with JD required/preferred skills (semantic match allowed).\n  - missing_skills = JD required skills not evidenced in the resume (exact or close synonyms).\n- Position:\n  - Use the role/title in the JD as position_applied_for.\n- Summary:\n  - 3–5 concise sentences covering experience, domains, stack, notable achievements, and fit for the JD.\n\n## **SCORING RUBRIC (0–100):**\n- Skill match (coverage & depth): 60 points\n  - Required skills coverage (40)\n  - Preferred/nice-to-have (10)\n  - Recency/relevance of use (10)\n- Experience relevance to JD responsibilities: 20 points\n- Education/certifications relevant to JD: 10 points\n- Communication/clarity & measurable impact (numbers, outcomes): 10 points\n\nCompute resume_score as the sum (integer). Be consistent and reasonable. \nSTATUS RULE\n- If resume_score > 70 → \"pass\"\n- Else → \"fail\"\n\n## **CONSTRAINTS:**\n- Output **only** the JSON object (no prose).\n- Do not include keys not listed in the schema.\n- For any unavailable item, use null.\n- Never guess personal data.\n\n## **EXAMPLE RESPONSE (illustrative only):**\n{\n  \"first_name\": \"Farhana\",\n  \"last_name\": \"Khan\",\n  \"phone_number\": \"+911234567890\",\n  \"email_id\": \"farhana.k@example.com\",\n  \"gender\": null,\n  \"position_applied_for\": \"Python Backend Developer\",\n  \"resume_summary\": \"Backend engineer with 3+ years building RESTful APIs in Django and FastAPI. Strong in PostgreSQL, Celery, Redis, and Docker; deployed on AWS. Implemented role-based auth and observability with Prometheus/Grafana. Experience aligns with JD focus on API performance and secure integrations.\",\n  \"strong_skills\": [\"python\", \"django\", \"fastapi\", \"postgresql\", \"rest_api\", \"docker\", \"aws\"],\n  \"missing_skills\": [\"kafka\", \"kubernetes\"],\n  \"resume_score\": 88,\n  \"status\": \"pass\"\n}\n",
+              "role": "system"
+            }
+          ]
+        },
+        "simplify": false,
+        "jsonOutput": true,
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [
+        -3744,
+        -1216
+      ],
+      "id": "17426161-85dd-44f7-8537-77717e028e52",
+      "name": "OpenAI: Extract Info",
+      "credentials": {
+        "openAiApi": {
+          "id": "mznfU6hCuvlMMcXf",
+          "name": "Sairam OPENAI_API_KEY"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "1I9UynqoiXd7kCCSK8UNSy5MouauunCtMyzdDMET0_eE",
+          "mode": "list",
+          "cachedResultName": "ResumeTracker",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1I9UynqoiXd7kCCSK8UNSy5MouauunCtMyzdDMET0_eE/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Resume-Evaluation",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1I9UynqoiXd7kCCSK8UNSy5MouauunCtMyzdDMET0_eE/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "First Name": "={{ $json.choices[0].message.content.first_name }}",
+            "Last  Name": "={{ $json.choices[0].message.content.last_name }}",
+            "Gender": "={{ $json.choices[0].message.content.gender }}",
+            "Email ID": "={{ $('OpenAI: Extract Info').item.json.choices[0].message.content.email_id }}",
+            "Possition Applied For": "={{ $json.choices[0].message.content.position_applied_for }}",
+            "Resume Summary": "={{ $json.choices[0].message.content.resume_summary }}",
+            "Phone Number": "={{ $json.choices[0].message.content.phone_number }}",
+            "Missing Skills": "={{ $json.choices[0].message.content.missing_skills }}",
+            "Resume Score": "={{ $json.choices[0].message.content.resume_score }}",
+            "Status": "={{ $json.choices[0].message.content.status }}",
+            "StrongSkills": "={{ $json.choices[0].message.content.strong_skills }}"
+          },
+          "matchingColumns": [
+            "Email ID"
+          ],
+          "schema": [
+            {
+              "id": "First Name",
+              "displayName": "First Name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Last  Name",
+              "displayName": "Last  Name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Gender",
+              "displayName": "Gender",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Email ID",
+              "displayName": "Email ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Phone Number",
+              "displayName": "Phone Number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Possition Applied For",
+              "displayName": "Possition Applied For",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Resume Summary",
+              "displayName": "Resume Summary",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "StrongSkills",
+              "displayName": "StrongSkills",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Missing Skills",
+              "displayName": "Missing Skills",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Email Notification",
+              "displayName": "Email Notification",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Resume Score",
+              "displayName": "Resume Score",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Status",
+              "displayName": "Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -3328,
+        -1216
+      ],
+      "id": "7fd90e0c-c1be-4673-aec9-94e7dcbf3faa",
+      "name": "Add/Update Candidate Info",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "aFJBK5F72JoiKwQm",
+          "name": "jhon@aiqwip sheet"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const documents = $input.all();\nconst documentCount = documents.length;\n\nreturn { documentCount };\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -4128,
+        -1424
+      ],
+      "id": "01eabf5a-21ec-4272-8582-36cc5c414ebc",
+      "name": "Code"
+    },
+    {
+      "parameters": {
+        "content": "## Resume Evaluation",
+        "height": 672,
+        "width": 2144
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -5232,
+        -1552
+      ],
+      "typeVersion": 1,
+      "id": "71745c98-0ed7-463a-a5f9-c1607f484dd9",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "seconds"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -4928,
+        -512
+      ],
+      "id": "f71bc64c-4d7f-4d34-a865-b2fc28438133",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1I9UynqoiXd7kCCSK8UNSy5MouauunCtMyzdDMET0_eE",
+          "mode": "list",
+          "cachedResultName": "ResumeTracker",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1I9UynqoiXd7kCCSK8UNSy5MouauunCtMyzdDMET0_eE/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Resume-Evaluation",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1I9UynqoiXd7kCCSK8UNSy5MouauunCtMyzdDMET0_eE/edit#gid=0"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -4720,
+        -512
+      ],
+      "id": "21ec4b25-87ca-4b93-9cb3-c3b376e87323",
+      "name": "Get Data",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "aFJBK5F72JoiKwQm",
+          "name": "jhon@aiqwip sheet"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "dc170647-110c-445e-a23f-ffee13d1603e",
+              "leftValue": "={{ $json.Status }}",
+              "rightValue": "pass",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -4512,
+        -512
+      ],
+      "id": "0a6d4723-ece1-43d2-bd6b-f39211f7c46e",
+      "name": "If - Pass Candidate"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        -4208,
+        -640
+      ],
+      "id": "97138df8-d579-4732-bf22-fa2fa35f7e2f",
+      "name": "Loop Over Items"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.elevenlabs.io/v1/convai/twilio/outbound-call",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "xi-api-key",
+              "value": "sk_6b1962efa297eaead0b2eeb9c74e8c59717b4873fa5f26ce"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"agent_id\": \"agent_01jwzgd79merwt0m7mfknek3hg\",\n  \"agent_phone_number_id\": \"phnum_01jvs7f8gsffhaykpavtynnee6\",\n  \"to_number\": \"{{ $json.phoneNumber }}\",\n  \"conversation_initiation_client_data\": {\n    \"dynamic_variables\": {\n      \"candidate_name\": \"{{ $json.firstName }}\",\n      \"job_role\": \"{{ $json.positionAppliedFor }}\",\n      \"resume_summary\": \"{{ $json.resumeSummary }}\"\n    }\n  }\n}\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -3728,
+        -544
+      ],
+      "id": "2668dfef-a186-4741-852e-47bd18b27b43",
+      "name": "HTTP Request"
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst updatedItems = items.map((item) => {\n  const strongSkills = item?.json?.StrongSkills.split(\",\").join(\",\");\n  const phoneNumber = \"+\" + String(item?.json[\"Phone Number\"]);\n  return {\n    firstName: item?.json[\"First Name\"],\n    phoneNumber,\n    resumeSummary: item?.json[\"Resume Summary\"],\n    positionAppliedFor: item?.json[\"Possition Applied For\"],\n    strongSkills,\n  };\n});\nreturn updatedItems;\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -4000,
+        -544
+      ],
+      "id": "06d1a9e3-ce6d-434b-8e36-da1e54979814",
+      "name": "Code1"
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "1I9UynqoiXd7kCCSK8UNSy5MouauunCtMyzdDMET0_eE",
+          "mode": "list",
+          "cachedResultName": "ResumeTracker",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1I9UynqoiXd7kCCSK8UNSy5MouauunCtMyzdDMET0_eE/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 881763818,
+          "mode": "list",
+          "cachedResultName": "Candidate-Conversation-Evaluation",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1I9UynqoiXd7kCCSK8UNSy5MouauunCtMyzdDMET0_eE/edit#gid=881763818"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Email ID": "={{ $('Loop Over Items').item.json['Email ID'] }}",
+            "First Name": "={{ $('Loop Over Items').item.json['First Name'] }}",
+            "Last  Name": "={{ $('Loop Over Items').item.json['Last  Name'] }}",
+            "Gender": "={{ $('Loop Over Items').item.json.Gender }}",
+            "Phone Number": "={{ $('Loop Over Items').item.json['Phone Number'] }}",
+            "Possition Applied For": "={{ $('Loop Over Items').item.json['Possition Applied For'] }}",
+            "Converstion ID": "={{ $json.conversation_id }}"
+          },
+          "matchingColumns": [
+            "Email ID"
+          ],
+          "schema": [
+            {
+              "id": "First Name",
+              "displayName": "First Name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Last  Name",
+              "displayName": "Last  Name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Gender",
+              "displayName": "Gender",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Email ID",
+              "displayName": "Email ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Phone Number",
+              "displayName": "Phone Number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Possition Applied For",
+              "displayName": "Possition Applied For",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Converstion ID",
+              "displayName": "Converstion ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Conversation Summary",
+              "displayName": "Conversation Summary",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Current CTC",
+              "displayName": "Current CTC",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Expected CTC",
+              "displayName": "Expected CTC",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Notice Preiod",
+              "displayName": "Notice Preiod",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Current Location",
+              "displayName": "Current Location",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Prefered Location",
+              "displayName": "Prefered Location",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Email Notification",
+              "displayName": "Email Notification",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Conversation Score",
+              "displayName": "Conversation Score",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Status",
+              "displayName": "Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -3520,
+        -544
+      ],
+      "id": "f6836f16-a897-4b42-a2c7-b4ef4c2a0211",
+      "name": "Update Conversation Evaluation",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "aFJBK5F72JoiKwQm",
+          "name": "jhon@aiqwip sheet"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "## Telephonic Call by 11labs",
+        "height": 624,
+        "width": 2144,
+        "color": 2
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -5232,
+        -768
+      ],
+      "typeVersion": 1,
+      "id": "e2230f19-f3a7-46e3-9baf-49b42ac3ac53",
+      "name": "Sticky Note1"
+    },
+    {
+      "parameters": {
+        "jsCode": "const documents = $input.all();\nconst documentCount = documents.length;\n\nreturn { documentCount };\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -4000,
+        -736
+      ],
+      "id": "934d51e4-c133-48d5-8b7c-74218b3993cd",
+      "name": "Code2"
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "seconds"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -5024,
+        192
+      ],
+      "id": "95b94d71-ad49-49a8-80a4-1fa0d9295e03",
+      "name": "Conversation Evaluation"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1I9UynqoiXd7kCCSK8UNSy5MouauunCtMyzdDMET0_eE",
+          "mode": "list",
+          "cachedResultName": "ResumeTracker",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1I9UynqoiXd7kCCSK8UNSy5MouauunCtMyzdDMET0_eE/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 881763818,
+          "mode": "list",
+          "cachedResultName": "Candidate-Conversation-Evaluation",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1I9UynqoiXd7kCCSK8UNSy5MouauunCtMyzdDMET0_eE/edit#gid=881763818"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -4384,
+        192
+      ],
+      "id": "84df0091-d043-4bd2-9896-1dade4146525",
+      "name": "Get row(s) in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "aFJBK5F72JoiKwQm",
+          "name": "jhon@aiqwip sheet"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "=https://api.elevenlabs.io/v1/convai/conversations/{{ $json['Converstion ID'] }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "xi-api-key",
+              "value": "sk_6b1962efa297eaead0b2eeb9c74e8c59717b4873fa5f26ce"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -3888,
+        112
+      ],
+      "id": "75f12422-a03c-4381-b444-8d16c27b1c90",
+      "name": "HTTP Request: Get Transcript"
+    },
+    {
+      "parameters": {
+        "operation": "download",
+        "fileId": {
+          "__rl": true,
+          "value": "1MHQJ6oD38aBPrhhD7G-G885Dh-p8nzB4",
+          "mode": "list",
+          "cachedResultName": "JD.pdf",
+          "cachedResultUrl": "https://drive.google.com/file/d/1MHQJ6oD38aBPrhhD7G-G885Dh-p8nzB4/view?usp=drivesdk"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        -4816,
+        192
+      ],
+      "id": "b96c24ae-1388-4f96-af7a-22c3e38a68b3",
+      "name": "Download: JD1",
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "poure53r0gBj835F",
+          "name": "Jhon@aiqwip G-Drive"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "pdf",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1,
+      "position": [
+        -4592,
+        192
+      ],
+      "id": "ddd188fa-e13c-4156-a92d-d8d8b2329abb",
+      "name": "Read JD1"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        -4160,
+        192
+      ],
+      "id": "d2de4ef2-5f91-47e0-b4f6-c68a72e5f8d6",
+      "name": "Loop Over Items1"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o",
+          "mode": "list",
+          "cachedResultName": "GPT-4O"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=# **Role:**  \nYou are an expert technical recruiter and meticulous data extractor. Follow the schema and rules exactly. Do not invent data. If a field cannot be found or validated, return `null` (not an empty string).  \n\n---\n\n## **Inputs:**  \n\n### **Job Description (JD):**  \n{{ $('Read JD1').item.json.text }}  \n\n### **Candidate Conversation Transcript:**  \n{{ $json.conversation }}\n\n---\n\n## **Tasks:**  \n1. Parse the conversation and evaluate the candidate against the JD.  \n2. Return a single JSON object using the exact schema below.  \n3. Apply the validation, normalization, and scoring rules precisely.  \n\n---\n\n## **Validation & Normalization Rules:**\n- **CTC (current & expected):**\n  -- Always return as strings with units (\"10 LPA\", \"₹12,00,000\").\n  -- If candidate is a fresher, set both current_ctc and expected_ctc to \"fresher\".\n -- If unclear, return null.\n\n- **Notice period:**\n  -- Standardize to readable units (\"2 months\", \"60 days\").\n  -- If ambiguous, return null.\n\n- **Locations:**\n  -- Use plain city names (e.g., \"Bengaluru\", \"Hyderabad\").\n  -- If multiple locations are mentioned, pick the most explicitly stated.\n  -- If unclear, return null.\n\n- **Conversation summary:**\n  -- Must be 5–10 concise recruiter-style sentences summarizing communication, technical fit, clarity, expectations, and role alignment.\n\n---\n\n## **Output Schema** (keys must match exactly)  \n\n```json\n{\n  \"conversation_summary\": string|null,    // 3–5 sentences summarizing performance\n  \"current_ctc\": string|null,             // formatted as \"12 LPA\" or \"₹18,00,000\"\n  \"expected_ctc\": string|null,            // formatted with units\n  \"notice_period\": string|null,           // e.g., \"2 months\", \"45 days\"\n  \"current_location\": string|null,\n  \"preferred_location\": string|null,\n  \"conversation_score\": integer,          // 0–100\n  \"status\": \"fresher\"|\"pass\"|\"fail\"       // fresher if no CTC found, else pass/fail\n}\n",
+              "role": "system"
+            }
+          ]
+        },
+        "simplify": false,
+        "jsonOutput": true,
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [
+        -3472,
+        112
+      ],
+      "id": "38156a4f-7987-4025-9556-e8cbe3561551",
+      "name": "Conversation Evaluation1",
+      "credentials": {
+        "openAiApi": {
+          "id": "mznfU6hCuvlMMcXf",
+          "name": "Sairam OPENAI_API_KEY"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// n8n Code node (JavaScript)\n// INPUT: The node receives the JSON you pasted (an array with one object containing `transcript`).\n// OUTPUT: A single field `conversation` with lines like \"agent: ...\\nuser: ...\\nagent: ...\"\n\nfunction pickText(entry) {\n  // Prefer original_message when present, else message\n  let text = entry?.original_message ?? entry?.message ?? \"\";\n  if (typeof text !== \"string\") return \"\";\n  // Collapse internal whitespace/newlines to keep one line per turn\n  text = text.replace(/\\s+/g, \" \").trim();\n  return text;\n}\n\nfunction transcriptToLines(transcript = []) {\n  const lines = [];\n  for (const t of transcript) {\n    if (!t || (t.role !== \"agent\" && t.role !== \"user\")) continue;\n    const text = pickText(t);\n    if (!text) continue;\n    lines.push(`${t.role}: ${text}`);\n  }\n  return lines;\n}\n\nconst input = items[0]?.json;\n\nlet outputs = [];\n\n// Handle if the input itself is an array of conversations (like the sample)\nif (Array.isArray(input)) {\n  for (const conv of input) {\n    const lines = transcriptToLines(conv?.transcript);\n    outputs.push({ json: { conversation: lines.join(\"\\n\") } });\n  }\n} else {\n  // Or a single conversation object with `transcript`\n  const lines = transcriptToLines(input?.transcript);\n  outputs.push({ json: { conversation: lines.join(\"\\n\") } });\n}\n\nreturn outputs;\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -3680,
+        112
+      ],
+      "id": "12e58dfc-ab76-4065-8d0e-99d6219540d6",
+      "name": "Code3"
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "1I9UynqoiXd7kCCSK8UNSy5MouauunCtMyzdDMET0_eE",
+          "mode": "list",
+          "cachedResultName": "ResumeTracker",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1I9UynqoiXd7kCCSK8UNSy5MouauunCtMyzdDMET0_eE/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 881763818,
+          "mode": "list",
+          "cachedResultName": "Candidate-Conversation-Evaluation",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1I9UynqoiXd7kCCSK8UNSy5MouauunCtMyzdDMET0_eE/edit#gid=881763818"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Conversation Summary": "={{ $json.choices[0].message.content.conversation_summary }}",
+            "Current CTC": "={{ $json.choices[0].message.content.current_ctc }}",
+            "Expected CTC": "={{ $json.choices[0].message.content.expected_ctc }}",
+            "Notice Preiod": "={{ $json.choices[0].message.content.notice_period }}",
+            "Current Location": "={{ $json.choices[0].message.content.current_location }}",
+            "Prefered Location": "={{ $json.choices[0].message.content.preferred_location }}",
+            "Conversation Score": "={{ $json.choices[0].message.content.conversation_score }}",
+            "Status": "={{ $json.choices[0].message.content.status }}",
+            "Email ID": "={{ $('Loop Over Items1').item.json['Email ID'] }}"
+          },
+          "matchingColumns": [
+            "Email ID"
+          ],
+          "schema": [
+            {
+              "id": "First Name",
+              "displayName": "First Name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Last  Name",
+              "displayName": "Last  Name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Gender",
+              "displayName": "Gender",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Email ID",
+              "displayName": "Email ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Phone Number",
+              "displayName": "Phone Number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Possition Applied For",
+              "displayName": "Possition Applied For",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Converstion ID",
+              "displayName": "Converstion ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Conversation Summary",
+              "displayName": "Conversation Summary",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Current CTC",
+              "displayName": "Current CTC",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Expected CTC",
+              "displayName": "Expected CTC",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Notice Preiod",
+              "displayName": "Notice Preiod",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Current Location",
+              "displayName": "Current Location",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Prefered Location",
+              "displayName": "Prefered Location",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Email Notification",
+              "displayName": "Email Notification",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Conversation Score",
+              "displayName": "Conversation Score",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Status",
+              "displayName": "Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -3392,
+        336
+      ],
+      "id": "3627ec44-2007-45ae-89a5-172116d88fd4",
+      "name": "Append or update row in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "aFJBK5F72JoiKwQm",
+          "name": "jhon@aiqwip sheet"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "## Conversation Evaluation",
+        "height": 592,
+        "width": 2128
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -5216,
+        16
+      ],
+      "typeVersion": 1,
+      "id": "99027654-0675-47d3-baec-8c6d2480f22d",
+      "name": "Sticky Note2"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        -3920,
+        -1424
+      ],
+      "id": "c9921bc1-921c-4c14-b235-bef432e952ce",
+      "name": "Wait: 5 Sec",
+      "webhookId": "72121a78-9b60-4693-bd09-6fc0a823dff5"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        -3792,
+        -736
+      ],
+      "id": "743fb8c8-cb2f-4782-b28c-f44e666f85e9",
+      "name": "Wait: 5 Sec1",
+      "webhookId": "eea500fc-333f-47b1-9ba2-155a6decb9d4"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "START MANUAL": {
+      "main": [
+        [
+          {
+            "node": "Download: JD",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download: JD": {
+      "main": [
+        [
+          {
+            "node": "Read JD",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read JD": {
+      "main": [
+        [
+          {
+            "node": "Search PDFs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop": {
+      "main": [
+        [
+          {
+            "node": "Code",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Download - Resumes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Search PDFs": {
+      "main": [
+        [
+          {
+            "node": "Loop",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download - Resumes": {
+      "main": [
+        [
+          {
+            "node": "Read Resumes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Resumes": {
+      "main": [
+        [
+          {
+            "node": "OpenAI: Extract Info",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI: Extract Info": {
+      "main": [
+        [
+          {
+            "node": "Add/Update Candidate Info",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Add/Update Candidate Info": {
+      "main": [
+        [
+          {
+            "node": "Loop",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code": {
+      "main": [
+        [
+          {
+            "node": "Wait: 5 Sec",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Get Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Data": {
+      "main": [
+        [
+          {
+            "node": "If - Pass Candidate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If - Pass Candidate": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items": {
+      "main": [
+        [
+          {
+            "node": "Code2",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Code1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code1": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Update Conversation Evaluation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Conversation Evaluation": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Conversation Evaluation": {
+      "main": [
+        [
+          {
+            "node": "Download: JD1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get row(s) in sheet": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request: Get Transcript": {
+      "main": [
+        [
+          {
+            "node": "Code3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download: JD1": {
+      "main": [
+        [
+          {
+            "node": "Read JD1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read JD1": {
+      "main": [
+        [
+          {
+            "node": "Get row(s) in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items1": {
+      "main": [
+        [],
+        [
+          {
+            "node": "HTTP Request: Get Transcript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code3": {
+      "main": [
+        [
+          {
+            "node": "Conversation Evaluation1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Conversation Evaluation1": {
+      "main": [
+        [
+          {
+            "node": "Append or update row in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append or update row in sheet": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait: 5 Sec": {
+      "main": [
+        []
+      ]
+    },
+    "Code2": {
+      "main": [
+        [
+          {
+            "node": "Wait: 5 Sec1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait: 5 Sec1": {
+      "main": [
+        []
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "49e51674-5930-40b2-a09a-2986dc5bf43e",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "af2b331650266ee49c8c45e1932097491cb4e4e0fa50e6eebe9d35cbd323946a"
+  },
+  "id": "tkAq9gVP3m3cbDyr",
+  "tags": []
+}
