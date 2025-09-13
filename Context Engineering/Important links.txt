@@ -1,0 +1,25 @@
+Context Engineering:
+
+https://www.promptingguide.ai/guides/context-engineering-guide
+
+https://www.datacamp.com/blog/context-engineering
+
+https://github.com/davidkimai/Context-Engineering
+
+https://blog.langchain.com/context-engineering-for-agents/
+
+
+
+YouTube Video:
+https://youtu.be/4GiqzUHD5AA?si=FhzIkIcr89pB5IyY
+
+
+
+
+
+
+
+
+
+
+
